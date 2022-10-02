@@ -12,34 +12,46 @@ void Worker::run(){
     while(true) {
         std::cout << "This is game " << gameCounter;
         std::cout << " This is your first ball" << std::endl;
-        std::string inFirst = "";
-        std::getline(std::cin, inFirst);
-        std::cout << "in first " << inFirst << std::endl;fflush(stdout);
+        bool validInput = false;
         std::vector<bool> pins(10,false);
         ResultType res;
         int score = 0;
+        std::string inFirst = "";
+        do{
+        std::getline(std::cin, inFirst);
+        std::cout << "in first " << inFirst << std::endl;fflush(stdout);
         if(inFirst == "r"){
             generatePinVector(pins, true, ResultType::random);
             res = ResultType::random;
+            validInput=true;
         } else if(inFirst == "x"){
             generatePinVector(pins, true, ResultType::strike);
             res = ResultType::strike;
+            validInput=true;
         } else if(inFirst == "s"){
             generatePinVector(pins, true, ResultType::split);
             res = ResultType::split;
+            validInput=true;
         } else if(inFirst == "g"){
             generatePinVector(pins, true, ResultType::gutter);
             res = ResultType::gutter;
+            validInput=true;
         } else if(inFirst == "e"){
             std::cout << "Bye.." << std::endl;
             emit finished("Bye");
         } else{
             std::cout << "invalid input. Press \"e\" to exit" << std::endl;
         }
+
+        for(auto it : pins)
+          score+=it;
+
         if(score == 10)
             res = ResultType::strike;
         else if(score == 0)
             res = ResultType::gutter;
+
+        }while(!validInput);
 
         printPins(pins);
         emit boardChangedFirst(QVector<bool>::fromStdVector(pins), res);
@@ -49,27 +61,35 @@ void Worker::run(){
         }
 
 
+        do{
         std::cout << "This is your second ball" << std::endl;
         std::cin.clear();
         std::string inSecond = "";
         std::getline(std::cin, inSecond);
-        std::cout << "in second " << inSecond << std::endl;fflush(stdout);
+        validInput = false;
+        score=0;
+
 
         if(inSecond == "r"){
             generatePinVector(pins, false, ResultType::random);
             res = ResultType::random;
+            validInput=true;
         } else if(inSecond == "/"){
             generatePinVector(pins, false, ResultType::spare);
             res = ResultType::spare;
+            validInput=true;
         } else if(inSecond == "s"){
             generatePinVector(pins, false, ResultType::split);
             res = ResultType::split;
+            validInput=true;
         } else if(inSecond == "x" && inFirst == "x"){ //strikes are only possible if the first ball was a strike
             res = ResultType::strike;
             generatePinVector(pins, false, ResultType::strike);
+            validInput=true;
         } else if(inSecond == "g"){
             res = ResultType::gutter;
             generatePinVector(pins, false, ResultType::gutter);
+            validInput=true;
         } else if(inSecond == "e"){
             std::cout << "Bye.." << std::endl;
             emit finished("Bye");
@@ -77,10 +97,14 @@ void Worker::run(){
             std::cout << "invalid input. Press \"e\" to exit" << std::endl;
         }
         printPins(pins);
-        if(score == 10)
+        for(auto it : pins)
+          score+=it;
+        
+        if(inFirst != "x" && score == 10)
             res = ResultType::spare;
         else if(score == 0)
             res = ResultType::gutter;
+        }while(!validInput);
 
         if(++gameCounter == 11)
             gameCounter = 1; //reset
@@ -113,8 +137,6 @@ MainWindow::MainWindow(QWidget *parent)
     connect(worker, SIGNAL(finished(QString)),
                     SLOT(onFinished(QString)));
     worker->start();
-
-
 }
 
 MainWindow::~MainWindow()
@@ -136,7 +158,9 @@ void MainWindow::onBoardChangedFirst(const QVector<bool>& vec, ResultType res)
     int score = 0;
     for(const auto& it : vec)
         score += it;
-    _score+=score;
+
+    if(res == ResultType::strike)
+      _score+=score;
 
     game2->setText("Ball2: \n");
     game1->setText(QString("Ball1: \n  %1").arg(score));
@@ -150,7 +174,6 @@ void MainWindow::onBoardChangedFirst(const QVector<bool>& vec, ResultType res)
     comment->setText(resultTypeToString(res));
     comment->setAlignment(Qt::AlignCenter);
     comment->append(printPinsAsQString(vec));
-
     comment->setAlignment(Qt::AlignCenter);
 }
 
@@ -165,12 +188,11 @@ void MainWindow::onBoardChangedSecond(const QVector<bool>& vec, ResultType res)
 
     game2->setText(QString("Ball2: \n  %1").arg(score));
 
-    totalscore->setText(QString("Total Score: %1").arg(_score+score));
+    totalscore->setText(QString("Total Score: %1").arg(_score));
 
     comment->setText(resultTypeToString(res));
     comment->setAlignment(Qt::AlignCenter);
     comment->append(printPinsAsQString(vec));
-
     comment->setAlignment(Qt::AlignCenter);
 }
 
